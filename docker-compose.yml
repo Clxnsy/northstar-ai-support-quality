@@ -1,0 +1,12 @@
+services:
+  northstar:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      NORTHSTAR_DB_PATH: /app/data/northstar.db
+      NORTHSTAR_PROCEDURES_DIR: /app/procedures
+    volumes:
+      - ./data:/app/data
+      - ./procedures:/app/procedures:ro
+    restart: unless-stopped

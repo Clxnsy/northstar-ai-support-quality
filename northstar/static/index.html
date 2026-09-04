@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Northstar AI Support Quality</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1020;--panel:#121a2b;--muted:#9ba8bd;--text:#ecf2ff;--line:#25324a;--ok:#56d19a;--bad:#ff718a;--accent:#76a7ff}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--text)}
+    main{max-width:1180px;margin:auto;padding:28px}.grid{display:grid;grid-template-columns:380px 1fr;gap:18px}@media(max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}.muted{color:var(--muted)}h1{margin:.2rem 0}h2{font-size:1rem;margin-top:0}
+    label{display:block;font-size:.82rem;color:var(--muted);margin:12px 0 5px}input,select,button{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0e1525;color:var(--text)}
+    button{margin-top:16px;background:var(--accent);color:#07101f;font-weight:700;cursor:pointer}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:12px;border:1px solid var(--line);border-radius:10px}.stat b{font-size:1.3rem;display:block}
+    table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.pass{color:var(--ok)}.fail{color:var(--bad)} code{color:#b7c8ff}
+    #error{white-space:pre-wrap;color:var(--bad);margin-top:12px}details{margin:6px 0}.pill{padding:2px 7px;border:1px solid var(--line);border-radius:999px;font-size:.75rem}
+  </style>
+</head>
+<body><main>
+  <h1>Northstar AI Support Quality</h1>
+  <p class="muted">Run real multi-agent support evaluations against your documented procedures. Provider secrets are sent only for the current request and are not stored in SQLite.</p>
+  <div class="grid">
+    <section class="card">
+      <h2>New evaluation</h2>
+      <label>Provider</label><select id="provider"><option value="openai_compatible">OpenAI-compatible</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama</option></select>
+      <label>Model</label><input id="model" value="gpt-4.1-mini" />
+      <label>Base URL</label><input id="base" value="https://api.openai.com/v1" />
+      <label>API key <span class="muted">(not required for Ollama)</span></label><input id="key" type="password" autocomplete="off" />
+      <label>Tickets</label><input id="count" type="number" min="1" max="100" value="8" />
+      <label>Concurrency</label><input id="concurrency" type="number" min="1" max="12" value="2" />
+      <label>Categories / slugs <span class="muted">(optional, comma-separated)</span></label><input id="categories" placeholder="identity, vpn, phishing" />
+      <button id="run">Run evaluation</button>
+      <div id="error"></div>
+      <p class="muted" style="font-size:.76rem">For LAN exposure, prefer an environment variable or HTTPS reverse proxy rather than sending API keys over plain HTTP.</p>
+    </section>
+    <section>
+      <div class="card">
+        <h2>Latest result</h2><div id="stats" class="stats"><span class="muted">No run loaded.</span></div>
+      </div>
+      <div class="card" style="margin-top:18px"><h2>Tickets</h2><div id="tickets" class="muted">Run an evaluation to populate results.</div></div>
+      <div class="card" style="margin-top:18px"><h2>Recent runs</h2><div id="runs"></div></div>
+    </section>
+  </div>
+<script>
+const $=id=>document.getElementById(id);
+async function get(url, opts){const r=await fetch(url,opts); if(!r.ok){let t=await r.text();throw new Error(t)} return r.json()}
+function stat(label,value){return `<div class="stat"><span class="muted">${label}</span><b>${value}</b></div>`}
+function renderRun(data){const s=data.summary;$('stats').innerHTML=stat('Pass rate',`${s.pass_rate}%`)+stat('Mean score',s.mean_score??0)+stat('Failed',s.failed??0)+stat('Critical',s.critical_failures??0);
+ const rows=(data.tickets||[]).map(t=>`<tr><td>${t.ordinal}</td><td><span class="pill">${t.severity}</span> ${t.category}</td><td><details><summary>${escapeHtml(t.title)}</summary><div class="muted">${escapeHtml(t.body)}</div></details></td><td>${t.total??'-'}</td><td class="${t.verdict}">${t.verdict??'-'}</td><td>${t.defect_type?escapeHtml(t.defect_type):'-'}</td></tr>`).join('');
+ $('tickets').innerHTML=`<table><thead><tr><th>#</th><th>Type</th><th>Ticket</th><th>Score</th><th>Verdict</th><th>Defect</th></tr></thead><tbody>${rows}</tbody></table>`}
+function escapeHtml(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]))}
+async function loadRuns(){const runs=await get('/api/runs');$('runs').innerHTML=`<table><thead><tr><th>Created</th><th>Model</th><th>Tickets</th><th>Pass</th></tr></thead><tbody>${runs.map(r=>`<tr style="cursor:pointer" onclick="loadRun('${r.id}')"><td>${new Date(r.created_at).toLocaleString()}</td><td>${escapeHtml(r.model)}</td><td>${r.ticket_count}</td><td>${r.pass_rate??'-'}%</td></tr>`).join('')}</tbody></table>`}
+async function loadRun(id){const data=await get(`/api/runs/${id}`);renderRun(data);return data} window.loadRun=loadRun;
+async function pollRun(id){for(;;){const data=await loadRun(id);if(data.status==='complete')return data;if(data.status==='failed')throw new Error(data.error||'Evaluation failed');await new Promise(r=>setTimeout(r,1200));}}
+$('provider').onchange=()=>{if($('provider').value==='ollama'){$('base').value='http://localhost:11434';$('model').value='qwen3:8b'}else if($('provider').value==='anthropic'){$('base').value='https://api.anthropic.com/v1';$('model').value='claude-sonnet-4-5'}else{$('base').value='https://api.openai.com/v1';$('model').value='gpt-4.1-mini'}};
+$('run').onclick=async()=>{ $('error').textContent='';$('run').disabled=true;$('run').textContent='Running agents…'; try{const cats=$('categories').value.split(',').map(x=>x.trim()).filter(Boolean); const body={provider:{provider:$('provider').value,model:$('model').value,base_url:$('base').value||null,api_key:$('key').value||null,temperature:.2},ticket_count:Number($('count').value),concurrency:Number($('concurrency').value),categories:cats.length?cats:null}; const out=await get('/api/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); await pollRun(out.run_id); await loadRuns(); }catch(e){$('error').textContent=e.message}finally{$('run').disabled=false;$('run').textContent='Run evaluation'}};
+loadRuns();
+</script></main></body></html>
