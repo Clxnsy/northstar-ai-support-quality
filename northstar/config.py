@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,10 +13,10 @@ class Settings(BaseSettings):
     procedures_dir: Path = Path("./procedures")
     default_provider: str = "openai_compatible"
     default_base_url: str = "https://api.openai.com/v1"
-    default_model: str = "gpt-4.1-mini"
+    default_model: str = ""
     api_key: str | None = None
-    request_timeout_seconds: int = 90
-    max_concurrency: int = 4
+    request_timeout_seconds: int = Field(default=90, ge=1, le=600)
+    max_concurrency: int = Field(default=4, ge=1, le=12)
 
 
 settings = Settings()

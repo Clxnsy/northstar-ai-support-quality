@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .config import settings
-
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -129,6 +129,35 @@ END;
 CREATE INDEX IF NOT EXISTS idx_tickets_run ON tickets(run_id);
 CREATE INDEX IF NOT EXISTS idx_defects_run ON defects(run_id);
 CREATE INDEX IF NOT EXISTS idx_scores_verdict ON scores(verdict);
+
+CREATE TABLE IF NOT EXISTS support_cases (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'drafting',
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    config_json TEXT NOT NULL,
+    draft_json TEXT,
+    sources_json TEXT NOT NULL DEFAULT '[]',
+    checks_json TEXT NOT NULL DEFAULT '[]',
+    reviewed_reply TEXT,
+    analyst_notes TEXT NOT NULL DEFAULT '',
+    error TEXT
+);
+CREATE TABLE IF NOT EXISTS case_reviews (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES support_cases(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    reply TEXT NOT NULL,
+    notes TEXT NOT NULL,
+    completed_steps_json TEXT NOT NULL DEFAULT '[]'
+);
+CREATE INDEX IF NOT EXISTS idx_cases_updated ON support_cases(updated_at);
+CREATE INDEX IF NOT EXISTS idx_reviews_case ON case_reviews(case_id);
 """
 
 
@@ -142,7 +171,7 @@ def _connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def init_db(path: Path | None = None) -> None:
-    with _connect(path) as conn:
+    with connection(path) as conn:
         conn.executescript(SCHEMA)
 
 

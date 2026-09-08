@@ -1,15 +1,40 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from urllib.parse import urlsplit
+
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class ProviderConfig(BaseModel):
-    provider: Literal["openai_compatible", "anthropic", "ollama"] = "openai_compatible"
-    model: str
+    provider: Literal["openai", "openrouter", "openai_compatible", "anthropic", "ollama"] = (
+        "openai_compatible"
+    )
+    model: str = Field(min_length=1, max_length=200)
     base_url: str | None = None
     api_key: SecretStr | None = None
-    temperature: float = Field(default=0.2, ge=0, le=2)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] | None = None
+    json_mode: bool = True
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, value: str):
+        if not value.strip():
+            raise ValueError("Enter a model identifier")
+        return value.strip()
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str | None):
+        if not value:
+            return None
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https"} or not parts.hostname:
+            raise ValueError("Use an HTTP or HTTPS provider URL")
+        if parts.username or parts.password or parts.query or parts.fragment:
+            raise ValueError("Provider URLs cannot contain credentials, queries, or fragments")
+        return value.rstrip("/")
 
 
 class Ticket(BaseModel):
@@ -106,3 +131,31 @@ class RunSummary(BaseModel):
     mean_score: float
     critical_failures: int
     top_failure_types: list[dict[str, Any]]
+
+
+class ModelListRequest(ProviderConfig):
+    model: str = "discovery"
+
+
+class CaseRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1, max_length=30000)
+    provider: ProviderConfig
+    procedure_slugs: list[str] = Field(default_factory=list, max_length=7)
+
+
+class SupportDraft(BaseModel):
+    summary: str
+    reply: str
+    suggested_steps: list[str]
+    clarifying_questions: list[str]
+    escalation: str | None = None
+    cautions: list[str] = Field(default_factory=list)
+    procedure_slugs: list[str] = Field(default_factory=list)
+
+
+class CaseReview(BaseModel):
+    status: Literal["reviewed", "closed"] = "reviewed"
+    reply: str = Field(min_length=1, max_length=30000)
+    notes: str = Field(default="", max_length=30000)
+    completed_steps: list[int] = Field(default_factory=list, max_length=100)

@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,10 +43,27 @@ def _parse_markdown(path: Path) -> tuple[dict[str, Any], str]:
         raise ValueError(f"{path} is missing YAML front matter")
     _, front, body = text.split("---", 2)
     metadata = yaml.safe_load(front) or {}
+    if not isinstance(metadata, dict):
+        raise ValueError(f"{path}: front matter must be a mapping")  # noqa: TRY004
     required = {"slug", "title", "category", "severity", "required_steps"}
     missing = required - set(metadata)
     if missing:
         raise ValueError(f"{path} missing metadata: {', '.join(sorted(missing))}")
+    for key in ("slug", "title", "category", "severity"):
+        if not isinstance(metadata[key], str) or not metadata[key].strip():
+            raise ValueError(f"{path}: {key} must be a nonempty string")
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", metadata["slug"]):
+        raise ValueError(f"{path}: slug must use lowercase words separated by hyphens")
+    if metadata["severity"] not in {"P1", "P2", "P3", "P4"}:
+        raise ValueError(f"{path}: severity must be P1 through P4")
+    for key in ("required_steps", "forbidden_actions", "escalation_conditions"):
+        items = metadata.get(key, [])
+        if not isinstance(items, list) or any(
+            not isinstance(x, str) or not x.strip() for x in items
+        ):
+            raise ValueError(f"{path}: {key} must be a list of nonempty strings")
+    if not metadata["required_steps"] or not body.strip():
+        raise ValueError(f"{path}: required steps and procedure body cannot be empty")
     return metadata, body.strip()
 
 
@@ -70,13 +87,19 @@ def load_all(directory: Path | None = None) -> list[Procedure]:
         )
     if not procedures:
         raise RuntimeError(f"No procedures found in {directory.resolve()}")
+    if len({p.slug for p in procedures}) != len(procedures):
+        raise ValueError("Procedure slugs must be unique")
     return procedures
 
 
 def sync_to_db(directory: Path | None = None) -> int:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     procedures = load_all(directory)
     with connection() as conn:
+        slugs = [p.slug for p in procedures]
+        conn.execute(
+            f"DELETE FROM procedures WHERE slug NOT IN ({','.join('?' for _ in slugs)})", slugs
+        )
         for procedure in procedures:
             raw = Path(procedure.source_path).read_bytes()
             checksum = hashlib.sha256(raw).hexdigest()
@@ -150,7 +173,9 @@ def retrieve(query: str, limit: int = 3) -> list[Procedure]:
                 (fts, limit),
             ).fetchall()
         else:
-            rows = conn.execute("SELECT * FROM procedures ORDER BY title LIMIT ?", (limit,)).fetchall()
+            rows = conn.execute(
+                "SELECT * FROM procedures ORDER BY title LIMIT ?", (limit,)
+            ).fetchall()
     procedures: list[Procedure] = []
     for row in rows:
         metadata = json.loads(row["metadata_json"])
