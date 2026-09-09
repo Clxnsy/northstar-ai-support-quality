@@ -10,8 +10,9 @@ from .db import connection, query_all, query_one
 
 
 def run_summary(run_id: str) -> dict[str, Any]:
-    aggregate = query_one(
-        """
+    aggregate = (
+        query_one(
+            """
         SELECT
           COUNT(*) AS tickets,
           SUM(CASE WHEN s.verdict='pass' THEN 1 ELSE 0 END) AS passed,
@@ -22,11 +23,19 @@ def run_summary(run_id: str) -> dict[str, Any]:
         JOIN scores s ON s.ticket_id=t.id
         WHERE t.run_id=?
         """,
-        (run_id,),
-    ) or {}
+            (run_id,),
+        )
+        or {}
+    )
     tickets = int(aggregate.get("tickets") or 0)
     passed = int(aggregate.get("passed") or 0)
     aggregate["pass_rate"] = round((passed / tickets * 100) if tickets else 0, 2)
+    for key in ("passed", "failed", "mean_score", "critical_failures"):
+        aggregate[key] = aggregate.get(key) or 0
+    aggregate["defects_by_severity"] = query_all(
+        "SELECT severity, COUNT(*) AS count FROM defects WHERE run_id=? GROUP BY severity",
+        (run_id,),
+    )
     aggregate["top_failure_types"] = query_all(
         """
         SELECT defect_type, COUNT(*) AS count
@@ -72,14 +81,24 @@ def failure_signals(run_id: str) -> list[dict[str, Any]]:
             counter[f"missed_step: {step}"] += 1
         for action in deterministic.get("forbidden_actions_hit", []):
             counter[f"forbidden_action: {action}"] += 1
+        if deterministic.get("escalation_required") and not deterministic.get(
+            "escalation_detected"
+        ):
+            counter["missed_escalation"] += 1
         judge = json.loads(row["judge_json"])
-        for dimension in ("accuracy", "procedure_adherence", "safety", "completeness", "hallucination_risk"):
+        for dimension in (
+            "accuracy",
+            "procedure_adherence",
+            "safety",
+            "completeness",
+            "hallucination_risk",
+        ):
             if judge.get(dimension, {}).get("score", 5) < 3:
                 counter[f"low_{dimension}"] += 1
     return [{"signal": key, "count": value} for key, value in counter.most_common(12)]
 
 
-def export_run_csv(run_id: str, output: Path) -> Path:
+def run_dataframe(run_id: str) -> pd.DataFrame:
     with connection() as conn:
         df = pd.read_sql_query(
             """
@@ -97,6 +116,20 @@ def export_run_csv(run_id: str, output: Path) -> Path:
             conn,
             params=(run_id,),
         )
+    # Spreadsheet programs interpret leading formula characters even in quoted CSV cells.
+    for column in df.select_dtypes(include=["object", "string"]).columns:
+        df[column] = df[column].map(
+            lambda value: (
+                "'" + value
+                if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@"))
+                else value
+            )
+        )
+    return df
+
+
+def export_run_csv(run_id: str, output: Path) -> Path:
+    df = run_dataframe(run_id)
     output.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output, index=False)
     return output

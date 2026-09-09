@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Northstar · Support Copilot</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--card:#141f31;--line:#2a3b52;--text:#edf3fc;--muted:#a4b6cc;--accent:#87dec6;--warning:#ffd391}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,Segoe UI,sans-serif}a{color:var(--accent)}header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 32px;border-bottom:1px solid var(--line)}header strong{font-size:23px;letter-spacing:-.5px}nav{display:flex;gap:20px}main{max-width:1400px;margin:auto;padding:28px;display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px}.card{padding:22px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:20px}h1{font-size:30px;letter-spacing:-.7px;line-height:1.2;margin:0 0 12px}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:18px 0 8px}.muted,small{color:var(--muted)}label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}input,textarea,select,button{font:inherit;border-radius:8px;border:1px solid var(--line);background:#0b1525;color:var(--text);padding:10px 12px;width:100%}textarea{resize:vertical;min-height:120px;line-height:1.6}button{cursor:pointer;font-weight:600}button:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}.primary{background:var(--accent);color:#0c2420;border-color:var(--accent)}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.actions button{width:auto}.tag{display:inline-block;border:1px solid var(--line);padding:3px 9px;border-radius:99px;font-size:12px;color:var(--accent)}.notice{padding:12px 15px;border-left:3px solid var(--accent);background:#182e33;margin:14px 0}.warning{border-color:var(--warning);color:var(--warning);background:#30291e}.error{color:#ffabaf;white-space:pre-wrap}#status{white-space:pre-wrap}.history button{text-align:left;margin:5px 0;font-weight:400}.history strong,.history small{display:block}.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--text);margin:10px 0}.check input{width:18px;height:18px;flex:none;margin-top:3px}summary{cursor:pointer;font-weight:600}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,monospace;color:var(--muted)}.columns{display:grid;grid-template-columns:1fr 1fr;gap:24px}ul,ol{padding-left:22px}li{margin-bottom:9px}#reply{min-height:240px}.empty{padding:24px 0}.library button{margin:5px 0;text-align:left;font-weight:400}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}[hidden]{display:none!important}@media(max-width:900px){main{grid-template-columns:1fr;padding:16px}.columns{grid-template-columns:1fr}header{padding:16px;align-items:flex-start}nav{flex-direction:column;gap:4px}aside{order:2}}@media(prefers-reduced-motion:no-preference){button{transition:border-color .15s}}
+</style>
+</head>
+<body>
+<header><div><strong>✦ Northstar</strong><div class="muted">Support copilot</div></div><nav><a href="/">Support workspace</a><a href="/quality-lab">Quality lab</a><a href="/docs">API guide</a></nav></header>
+<main>
+<aside>
+<section class="card"><h2>Your AI connection</h2><p class="muted">Choose the model you want to work with. Keys stay in memory.</p>
+<label for="provider">Provider</label><select id="provider"><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama · local</option><option value="openai_compatible">Other compatible server</option></select>
+<label for="base">Base URL</label><input id="base" type="url" value="https://api.openai.com/v1">
+<label for="key">API key (or use server environment)</label><input id="key" type="password" autocomplete="off">
+<button id="discover" style="margin-top:14px">Load available models</button>
+<label for="model">Model · select or enter an ID</label><input id="model" list="model-list" placeholder="Load models to choose a current one"><datalist id="model-list"></datalist><small id="model-status" role="status">Model availability comes from your provider.</small>
+<details style="margin-top:15px"><summary>Advanced options</summary><label for="temperature">Temperature (blank uses model default)</label><input id="temperature" type="number" min="0" max="2" step=".1"><label for="reasoning">Reasoning effort (OpenAI / compatible)</label><select id="reasoning"><option value="">Model default</option><option>none</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option></select><label class="check"><input id="json-mode" type="checkbox" checked>Request native JSON output</label><small>Disable for compatible servers that reject JSON mode. The returned draft must still be valid JSON.</small></details>
+<div class="notice"><strong>Try it with a free model</strong><p>OpenRouter's free router uses available free models. Bring your own free account key; availability and usage limits apply.</p><button id="demo">Set up free demo</button><p><a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer">Get an OpenRouter key</a> · <a href="https://openrouter.ai/openrouter/free" target="_blank" rel="noopener noreferrer">Free router details</a></p></div>
+</section>
+<section class="card"><h2>Case history</h2><div id="history" class="history muted">Loading saved cases…</div></section>
+</aside>
+<div>
+<section class="card"><span class="tag">You stay in control</span><h1 style="margin-top:14px">A second set of eyes<br>for your support desk.</h1><p class="muted">Turn a ticket into a clear reply, useful questions, and a procedure-backed plan. Review and edit every draft before using it.</p>
+<form id="ticket-form"><label for="title">Ticket subject</label><input id="title" required maxlength="300" placeholder="e.g. VPN connects, but internal sites won't load">
+<label for="body">Ticket details and what you already know</label><textarea id="body" required maxlength="30000" placeholder="Paste the user's issue, symptoms, and checks you've actually performed. Leave out credentials and unnecessary personal data."></textarea>
+<details><summary>Choose procedures (optional)</summary><label for="procedures">Select one or more, or leave blank for automatic retrieval</label><select id="procedures" multiple size="5"></select></details>
+<p class="muted"><small>Drafting sends these details and relevant procedures to your selected AI provider. Northstar stores the case locally. It does not send a reply or change any account or device.</small></p>
+<div class="actions"><button class="primary" id="draft" type="submit">Prepare a draft</button><button id="sample" type="button">Load sample ticket</button></div></form>
+<p id="error" class="error" role="alert"></p><p id="status" role="status" aria-live="polite"></p>
+</section>
+<section id="workspace" class="card" hidden>
+<div class="row"><h2 id="case-title">Case</h2><span id="case-state" class="tag"></span></div><p id="case-meta" class="muted"></p><details><summary>Original ticket</summary><p id="original" style="white-space:pre-wrap"></p></details>
+<div class="notice">AI draft · verify the facts and follow your organization's procedure. Suggested steps are not completed actions.</div>
+<p id="summary"></p><div id="cautions"></div>
+<div class="columns"><div><h3>Suggested next steps</h3><ol id="steps"></ol></div><div><h3>Questions to ask</h3><ul id="questions"></ul><h3>Escalation guidance</h3><p id="escalation"></p></div></div>
+<label for="reply">Reply draft · edit before use</label><textarea id="reply"></textarea>
+<details><summary>Procedure references and review reminders</summary><div id="checks"></div><div id="sources"></div></details>
+<h3>Your work record</h3><p class="muted">Check only the steps you have actually completed.</p><div id="completed"></div><label for="notes">Analyst notes / outcome</label><textarea id="notes" placeholder="What you verified, actions you actually took, and the outcome."></textarea>
+<label class="check"><input id="confirmed" type="checkbox">I reviewed and edited this reply, checked the procedure, and verified any claimed actions.</label>
+<div class="actions"><button id="save" class="primary">Save my review</button><button id="copy" disabled>Copy reviewed reply</button><button id="close-case">Save &amp; close case</button></div><p id="review-status" class="muted" role="status"></p>
+<details style="margin-top:16px"><summary>Review history</summary><div id="reviews"></div></details>
+</section>
+<section class="card"><h2>Procedure library</h2><p class="muted">Your Markdown runbooks are the source of policy. Select a procedure to read it.</p><div id="library" class="library"></div><pre id="procedure-text"></pre></section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let currentCase=null, pollTimer=null;
+const bases={openai:'https://api.openai.com/v1',openrouter:'https://openrouter.ai/api/v1',anthropic:'https://api.anthropic.com/v1',ollama:'http://localhost:11434',openai_compatible:'http://localhost:1234/v1'};
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail??data));return data;}
+function connection(){return {provider:$('provider').value,base_url:$('base').value.trim()||null,model:$('model').value.trim(),api_key:$('key').value||null,temperature:$('temperature').value===''?null:Number($('temperature').value),reasoning_effort:$('reasoning').value||null,json_mode:$('json-mode').checked};}
+function sample(){$('title').value='VPN connected, internal portal unavailable';$('body').value='I am working from home. General internet access works and the VPN client says connected, but our internal portal does not load. The issue started this morning. I have not changed any settings. What details should I collect and what should I check next?';}
+$('sample').onclick=sample;
+$('provider').onchange=()=>{$('base').value=bases[$('provider').value];$('model').value='';$('key').value='';$('model-list').innerHTML='';$('model-status').textContent='Load models from this provider, or enter an ID.';};
+$('demo').onclick=()=>{$('provider').value='openrouter';$('provider').onchange();$('model').value='openrouter/free';sample();$('model-status').textContent='Free router selected. Add your OpenRouter key, then prepare a draft. No paid-model fallback is configured.';};
+$('discover').onclick=async()=>{$('discover').disabled=true;$('model-status').textContent='Loading current model list…';try{const config=connection();delete config.model;const data=await api('/api/models',config);$('model-list').innerHTML=data.models.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');$('model-status').textContent=`${data.models.length} models available. Choose a text/chat model, or enter its ID.`;}catch(error){$('model-status').textContent=error.message+' You can still enter a model ID manually.';}finally{$('discover').disabled=false;}};
+async function history(){const cases=await api('/api/cases');$('history').innerHTML=cases.map(c=>`<button data-case="${esc(c.id)}"><strong>${esc(c.title)}</strong><small>${esc(c.status)} · ${esc(new Date(c.updated_at).toLocaleString())}</small></button>`).join('')||'Your saved cases will appear here.';document.querySelectorAll('[data-case]').forEach(button=>button.onclick=()=>loadCase(button.dataset.case));}
+function renderCase(c){
+  $('workspace').hidden=!c.draft;$('status').textContent=c.status==='drafting'?'Preparing a draft from your procedures…':c.error||'';
+  if(!c.draft)return;
+  $('case-title').textContent=c.title;$('case-state').textContent=c.status;$('case-meta').textContent=`${c.provider} · ${c.model} · ${new Date(c.created_at).toLocaleString()}`;$('original').textContent=c.body;
+  const d=c.draft;$('summary').textContent=d.summary;$('reply').value=c.reviewed_reply??d.reply;$('notes').value=c.analyst_notes;
+  $('steps').innerHTML=d.suggested_steps.map(step=>`<li>${esc(step)}</li>`).join('');$('questions').innerHTML=d.clarifying_questions.map(q=>`<li>${esc(q)}</li>`).join('')||'<li>No clarifying questions suggested. Confirm the ticket is complete.</li>';$('escalation').textContent=d.escalation||'No escalation suggested. Check the relevant procedure and current facts.';
+  $('cautions').innerHTML=d.cautions.map(text=>`<p class="notice warning">${esc(text)}</p>`).join('');
+  $('sources').innerHTML=c.sources.map(p=>`<details><summary>${esc(p.title)} · ${esc(p.slug)}</summary><pre>${esc(p.content)}</pre></details>`).join('');
+  $('checks').innerHTML='<p class="muted">These are keyword-based reminders, not a guarantee of correctness or a record of completed work.</p>'+c.checks.map(check=>`<h3>${esc(check.slug)}</h3><ul>${check.required_steps_missed.map(step=>`<li>Verify coverage: ${esc(step)}</li>`).join('')}${check.forbidden_actions_hit.map(action=>`<li class="error">Review possible prohibited guidance: ${esc(action)}</li>`).join('')}${check.escalation_required&&!check.escalation_detected?'<li class="error">Review mandatory escalation before using this reply.</li>':''}</ul>`).join('');
+  const completed=c.reviews.length?JSON.parse(c.reviews[0].completed_steps_json):[];
+  $('completed').innerHTML=d.suggested_steps.map((step,i)=>`<label class="check"><input type="checkbox" data-step="${i}" ${completed.includes(i)?'checked':''}>${esc(step)}</label>`).join('');
+  $('confirmed').checked=false;$('copy').disabled=!c.reviewed_reply;$('review-status').textContent=c.reviewed_reply?'Saved review loaded. Changes need a new review before copying.':'Edit the draft, then save your review.';
+  $('reviews').innerHTML=c.reviews.map(r=>`<details><summary>${esc(new Date(r.created_at).toLocaleString())} · ${esc(r.status)}</summary><pre>${esc(r.reply)}</pre><p>${esc(r.notes)}</p></details>`).join('')||'No human review recorded yet.';
+  document.querySelectorAll('[data-step]').forEach(input=>input.onchange=dirty);
+}
+function dirty(){$('copy').disabled=true;$('confirmed').checked=false;$('review-status').textContent='Unsaved edits. Save a new review before copying.';}
+$('reply').oninput=dirty;$('notes').oninput=dirty;
+async function loadCase(id){clearTimeout(pollTimer);currentCase=id;try{const c=await api('/api/cases/'+encodeURIComponent(id));if(currentCase!==id)return;renderCase(c);if(c.status==='drafting')pollTimer=setTimeout(()=>loadCase(id),1200);else await history();}catch(error){$('error').textContent=error.message;}}
+$('ticket-form').onsubmit=async event=>{event.preventDefault();$('error').textContent='';$('draft').disabled=true;try{const provider=connection();if(!provider.model)throw new Error('Choose or enter a model before drafting.');const out=await api('/api/cases',{title:$('title').value.trim(),body:$('body').value.trim(),provider,procedure_slugs:Array.from($('procedures').selectedOptions).map(o=>o.value)});await history();await loadCase(out.case_id);}catch(error){$('error').textContent=error.message;}finally{$('draft').disabled=false;}};
+async function saveReview(status){$('error').textContent='';if(!$('confirmed').checked){$('review-status').textContent='Confirm your review before saving.';return;}const caseId=currentCase;$('save').disabled=true;$('close-case').disabled=true;try{const c=await api(`/api/cases/${encodeURIComponent(caseId)}/review`,{status,reply:$('reply').value,notes:$('notes').value,completed_steps:Array.from(document.querySelectorAll('[data-step]:checked')).map(input=>Number(input.dataset.step))});if(currentCase===caseId){renderCase(c);$('review-status').textContent='Review saved locally. Nothing has been sent to the user.';}await history();}catch(error){$('review-status').textContent=error.message;}finally{$('save').disabled=false;$('close-case').disabled=false;}}
+$('save').onclick=()=>saveReview('reviewed');$('close-case').onclick=()=>saveReview('closed');
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('reply').value);$('review-status').textContent='Reviewed reply copied. Paste it into your support system when ready.';}catch{$('reply').focus();$('reply').select();$('review-status').textContent='Select and copy the reviewed reply with your keyboard.';}};
+async function library(){const procedures=await api('/api/procedures');$('procedures').innerHTML=procedures.map(p=>`<option value="${esc(p.slug)}">${esc(p.title)}</option>`).join('');$('library').innerHTML=procedures.map(p=>`<button data-procedure="${esc(p.slug)}">${esc(p.title)} <span class="muted">· ${esc(p.category)}</span></button>`).join('');document.querySelectorAll('[data-procedure]').forEach(button=>button.onclick=async()=>{try{const p=await api('/api/procedures/'+encodeURIComponent(button.dataset.procedure));$('procedure-text').textContent=p.content;}catch(error){$('error').textContent=error.message;}});}
+Promise.all([history(),library()]).catch(error=>{$('error').textContent=error.message;});
+</script>
+</body></html>

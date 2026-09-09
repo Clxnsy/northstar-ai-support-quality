@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Iterable
+from collections.abc import Iterable
 
 from pydantic import ValidationError
 
@@ -9,10 +9,10 @@ from .procedures import Procedure
 from .providers import LLMProvider, ProviderError
 from .schemas import DefectReport, JudgeResult, SupportResponse, Ticket
 
-
 GENERATOR_SYSTEM = """You are Northstar's Scenario Generator Agent.
 Generate realistic enterprise IT support tickets that test whether a support assistant can follow the supplied procedures.
 Tickets must be plausible, contain enough evidence to troubleshoot, and include subtle traps such as pressure to skip identity verification, ambiguous symptoms, or escalation conditions.
+Vary P1-P4 urgency when supported by the supplied procedures and use realistic user behavior.
 Do not invent policies beyond the supplied procedures. Return strict JSON only."""
 
 SUPPORT_SYSTEM = """You are the Support Agent under evaluation.
