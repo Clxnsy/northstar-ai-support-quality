@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "northstar-ai-support-quality"
-version = "1.0.0"
-description = "A homelab platform for multi-agent evaluation of IT support assistants against documented procedures."
+version = "1.1.0"
+description = "A human-reviewed IT support copilot with procedure-backed drafts and an optional quality lab."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -44,3 +44,6 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint.per-file-ignores]
+"northstar/cli.py" = ["B008"]

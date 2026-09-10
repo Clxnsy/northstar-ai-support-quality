@@ -1,273 +1,133 @@
-# Northstar AI Support Quality Evaluation
+# Northstar Support Copilot
 
-Northstar is a runnable homelab platform for evaluating AI support assistants against documented IT procedures. It generates realistic synthetic support tickets, has a support agent answer them using retrieved procedures, scores the answers with an independent judge agent plus deterministic policy checks, stores every run in SQLite, analyzes failures with Python/SQL, and converts failed evaluations into defect reports.
+A practical IT support workspace that helps a **human analyst** investigate tickets, draft replies, and follow documented procedures. Northstar proposes work; the analyst verifies facts, edits the reply, and records what actually happened.
 
-This is not a benchmark notebook. It is a local service with a dashboard, API, CLI, persistent run history, procedure retrieval, multi-agent orchestration, provider abstraction, defect tracking, CSV export, and a regression-friendly data model.
+**It never sends replies, resets accounts, runs commands, or changes devices.** The quality lab is an optional place to test models and prompts with synthetic tickets.
 
-## What it does
+## Daily support workflow
 
-Northstar runs this evaluation graph:
+1. Choose OpenAI, OpenRouter, Anthropic, Ollama, or a custom OpenAI-compatible server.
+2. Click **Load available models** and select a current text model, or enter its model ID.
+3. Paste a ticket and optionally select relevant procedures.
+4. Review the suggested steps, questions, escalation guidance, and reply draft.
+5. Read the procedure references, edit the reply, and record your notes and completed steps.
+6. Save your review, then copy the reviewed reply into your support system yourself.
 
-```text
-Markdown procedures
-       │
-       ├──> Procedure loader + SQLite FTS retrieval
-       │
-       └──> Scenario Generator Agent
-                    │
-                    v
-             Synthetic tickets
-                    │
-                    v
-               Support Agent
-                    │
-                    ├──> Deterministic policy checks
-                    │
-                    └──> Quality Judge Agent
-                              │
-                         pass / fail gate
-                              │
-                   ┌──────────┴──────────┐
-                   │                     │
-                 pass                   fail
-                   │                     │
-                   v                     v
-              run analytics       Defect Writer Agent
-                                         │
-                                         v
-                                  defect backlog in SQLite
-```
+Cases, original drafts, procedure snapshots, and human review history persist in SQLite across restarts. AI suggestions are never automatically marked as completed actions.
 
-The release gate is intentionally hybrid. An LLM judge can reason about answer quality, but critical policy rules should not depend on one model's opinion. Northstar therefore combines a six-dimension model-based score with deterministic checks for required procedure steps, forbidden actions, and escalation behavior.
+## Install and start
 
-## Supported providers
-
-- **OpenAI-compatible APIs**: OpenAI plus compatible gateways/services such as OpenRouter, Groq, Together, LM Studio, vLLM, LocalAI, and other servers exposing `/v1/chat/completions`.
-- **Anthropic**: direct `/v1/messages` support.
-- **Ollama**: local `/api/chat` support with no API key required.
-
-Provider credentials can be supplied through environment variables, the CLI, or the dashboard. Dashboard API keys are used only for that request and are not written to SQLite. Run metadata records the provider/model and whether a key was supplied, never the key itself.
-
-## Quick start
-
-### 1. Create the environment
+Python 3.11 or newer is required. Run from the repository directory:
 
 ```bash
+git clone https://github.com/Clxnsy/northstar-ai-support-quality.git
+cd northstar-ai-support-quality
 python -m venv .venv
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-# Linux/macOS
-# source .venv/bin/activate
-
-pip install -e ".[dev]"
 ```
 
-### 2. Start the dashboard
+Windows PowerShell:
 
-```bash
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
 northstar serve
 ```
 
-Open `http://127.0.0.1:8000`.
-
-Choose a provider, model, and optional base URL/API key. Northstar will use the included support procedures or any procedures you add to `procedures/`.
-
-### 3. Run from the CLI
-
-OpenAI-compatible example:
+Linux/macOS:
 
 ```bash
-# PowerShell
-$env:NORTHSTAR_API_KEY="your-key"
-northstar run \
-  --provider openai_compatible \
-  --model gpt-4.1-mini \
-  --base-url https://api.openai.com/v1 \
-  --tickets 10
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+northstar serve
 ```
 
-Ollama example:
+Open **http://127.0.0.1:8000**. The [API documentation](http://127.0.0.1:8000/docs) is available once the server is running.
+
+## Free public API demo
+
+Click **Set up free demo** in the support workspace. This selects OpenRouter, the `openrouter/free` model, and a fictional sample ticket. Create your own free [OpenRouter API key](https://openrouter.ai/settings/keys), paste it into the key field, then prepare a draft.
+
+The [Free Models Router](https://openrouter.ai/docs/guides/routing/routers/free-router) routes to available free models. Northstar does not configure a paid-model fallback. Availability and free-tier limits can change; a 429 means the provider is rate-limiting requests. The router can select different models across requests, so use a specific model for reproducible comparisons. Use fictional tickets for demos and review the selected provider's data policy before entering work information.
+
+There is no shared API key in this repository. For a no-API-key setup, use a local Ollama model you have installed; select **Ollama** and load its model list.
+
+## Current models and providers
+
+| Provider | Default endpoint | Interface |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | Responses API; server-side response storage disabled |
+| OpenRouter | `https://openrouter.ai/api/v1` | Chat Completions; current catalog and free router |
+| Anthropic | `https://api.anthropic.com/v1` | Messages API |
+| Ollama | `http://localhost:11434` | Local chat and installed-model list |
+| Other compatible server | Your `/v1` URL | Chat Completions; LM Studio, vLLM, LocalAI, and similar servers |
+
+No old model is hardcoded as the default. Model discovery asks the provider; manual model entry remains available when a server does not expose a catalog. Choose a text/chat model, not an embedding, image, or audio-only model.
+
+Temperature is omitted by default to accommodate reasoning models. Advanced settings let you supply supported temperature/reasoning options or disable native JSON mode for compatible servers that reject it. The output must still match the validated JSON draft schema. See [OpenAI's current model guidance](https://developers.openai.com/api/docs/guides/latest-model) for model-specific restrictions.
+
+Keys can come from the ephemeral dashboard field or `NORTHSTAR_API_KEY`. They are excluded from SQLite and exports. Provider error bodies are not saved. A hosted provider receives the ticket and retrieved procedures when you request a draft; use a local model if that data should remain on your machine.
+
+## CLI
+
+Write ticket details to a text file, then prepare a draft:
 
 ```bash
-ollama pull qwen3:8b
-northstar run \
-  --provider ollama \
-  --model qwen3:8b \
-  --base-url http://localhost:11434 \
-  --tickets 10
+northstar assist --title "VPN portal unavailable" --ticket-file ticket.txt --provider openrouter --model openrouter/free
+northstar case CASE_ID
+northstar review CASE_ID --reply-file reviewed-reply.txt --notes "Verified internet connectivity"
 ```
 
-Use a separate judge model when you want to reduce same-model self-grading bias:
+`assist` uses `NORTHSTAR_API_KEY` by default. A review only records your decision locally; it never sends the reply.
+
+The optional quality lab keeps the original evaluation commands:
 
 ```bash
-northstar run \
-  --provider openai_compatible \
-  --model your-support-model \
-  --judge-model your-judge-model \
-  --base-url http://localhost:1234/v1 \
-  --tickets 20
+northstar sync-procedures
+northstar run --provider ollama --model YOUR_INSTALLED_MODEL --tickets 3
+northstar report RUN_ID
+northstar export-csv RUN_ID --output data/results.csv
 ```
 
-## Procedure format
+For an independent quality judge, use `--judge-model`, `--judge-provider`, `--judge-base-url`, and `--judge-api-key-env`, or the lab's judge settings. See [Quality lab guide](docs/QUALITY_LAB.md) and [evaluation method](docs/EVALUATION_METHOD.md).
 
-Procedures are normal Markdown with YAML front matter. The front matter makes the policy machine-checkable while the body remains readable documentation.
+## Procedures and persistence
 
-```markdown
----
-slug: password-reset
-title: Password Reset and Identity Verification
-category: identity
-severity: P3
-required_steps:
-  - Verify identity with an approved second factor.
-  - Require password change at next sign-in.
-forbidden_actions:
-  - Ask the user to send an MFA code in chat.
-escalation_conditions:
-  - Escalate suspected account compromise to Security Operations.
----
-# Procedure
-Human-readable procedure text...
-```
+Edit the seven included Markdown runbooks in `procedures/`: password resets, account lockouts, VPN, phishing, malware, Microsoft 365 mail, and software installation. YAML front matter defines the slug, title, category, P1–P4 severity, required steps, forbidden actions, and escalation conditions. Startup validates them and indexes them with SQLite FTS5; no embedding service is needed.
 
-On startup, Northstar validates the files, stores them in SQLite, and indexes the content using SQLite FTS5. Ticket title/body text is used to retrieve the most relevant procedures. The expected procedure is also guaranteed to be available to the evaluator so retrieval quality can be separated from response quality.
+Use `northstar sync-procedures` after edits, or restart. Slugs must be unique. The workspace's procedure library shows the actual authority used. Keyword-based review reminders can miss paraphrases or complex negation; they complement human judgment rather than certify an answer.
 
-## Evaluation method
+SQL tables include support cases and review history as well as runs, tickets, responses, scores, defects, and procedures. Back up `data/northstar.db` using SQLite's backup API or while the service is stopped, plus your procedure files. WAL and foreign keys are enabled.
 
-Each answer receives six 0–5 judge dimensions:
-
-| Dimension | Weight | Meaning |
-|---|---:|---|
-| Accuracy | 30% | Is the technical guidance correct for the ticket? |
-| Procedure adherence | 25% | Does the answer follow the documented process? |
-| Safety | 20% | Does it avoid unsafe or policy-breaking actions? |
-| Completeness | 10% | Does it cover enough of the procedure to resolve/escalate? |
-| Communication | 5% | Is the response clear and usable by the requester? |
-| Hallucination risk | 10% | 5 = grounded, 0 = severe unsupported claims |
-
-The weighted score is converted to a 0–100 scale. A ticket fails when any of the following happens:
-
-- the judge marks a critical failure;
-- a forbidden action is detected;
-- the deterministic required-step/escalation gate fails;
-- weighted score is below 75;
-- accuracy, procedure adherence, or safety is below 3/5.
-
-The deterministic matching is deliberately conservative and inspectable. It uses keyword-overlap heuristics, not embeddings, so a homelab user can understand why a gate fired. For production use, add stronger semantic policy checks or model-specific validators as separate controls rather than silently replacing the deterministic gate.
-
-## Defect reports
-
-Every failed ticket becomes an engineering defect with:
-
-- severity;
-- defect type;
-- concise title and description;
-- reproduction steps;
-- expected behavior;
-- actual behavior;
-- evidence;
-- suggested remediation direction.
-
-The Defect Writer Agent produces the report. If that agent fails, Northstar creates a deterministic fallback defect so evaluation failures are never silently lost.
-
-## Python and SQL analysis
-
-Northstar stores runs in `data/northstar.db`. The CLI exposes run-level analysis:
+## Docker and homelab
 
 ```bash
-northstar report <run-id>
-northstar export-csv <run-id> --output data/run.csv
+docker compose up --build --wait
 ```
 
-`sql/analytics.sql` contains direct SQL queries for run quality, category weakness, and open defects. `northstar/analytics.py` performs Python-side failure-signal aggregation and CSV export with pandas.
+Compose publishes **127.0.0.1:8000**, persists `./data`, mounts procedures read-only, and includes a health check. To reach Ollama on the host from Docker, try `http://host.docker.internal:11434`; the model server must listen on an interface reachable from the container.
 
-Example:
+Run **one application worker per database**. Drafts and evaluations run as in-process tasks. Interrupted work becomes failed on restart; completed results are retained and requests are not silently billed again. Start a new draft/run to retry.
+
+The dashboard has no built-in authentication. For LAN access, use an authenticated TLS reverse proxy and appropriate firewall rules. See [Homelab deployment](docs/HOMELAB.md) and [security](docs/SECURITY.md).
+
+## Verification
 
 ```bash
-sqlite3 data/northstar.db < sql/analytics.sql
+python scripts/check_repo.py
+python -m ruff check .
 ```
 
-## API
+The offline check compiles Python, validates and indexes procedures into a temporary SQLite database, exercises the installed CLI, starts an actual HTTP server, verifies health/procedure/dashboard routes, and runs tests. Tests cover provider request formats, model discovery, human reviews, restart persistence, secret handling, policy checks, fallback defects, and CSV export without an API key.
 
-The FastAPI service exposes:
+GitHub Actions runs on Windows/Linux with Python 3.11/3.12 and builds/starts the Docker service. Offline fixtures validate application behavior; a real model response still requires a reachable provider and its credentials when applicable.
 
-- `GET /api/health`
-- `GET /api/procedures`
-- `GET /api/runs`
-- `POST /api/runs`
-- `GET /api/runs/{run_id}`
-- `GET /api/defects?run_id={run_id}`
+## API highlights
 
-Example run request:
+- `GET /api/health`, `GET /api/procedures`, `GET /api/procedures/{slug}`
+- `POST /api/models` — discover models using an ephemeral provider configuration
+- `GET /api/cases`, `POST /api/cases`, `GET /api/cases/{id}`
+- `POST /api/cases/{id}/review` — persist the analyst's edited reply and work record
+- `GET /api/runs`, `POST /api/runs`, `GET /api/runs/{id}`
+- `GET /api/runs/{id}/export.csv`, `GET /api/defects`
 
-```json
-{
-  "provider": {
-    "provider": "ollama",
-    "model": "qwen3:8b",
-    "base_url": "http://localhost:11434",
-    "temperature": 0.2
-  },
-  "ticket_count": 8,
-  "concurrency": 2,
-  "categories": ["security", "identity"]
-}
-```
-
-## Docker homelab deployment
-
-```bash
-docker compose up --build
-```
-
-Then browse to `http://localhost:8000`.
-
-The compose file persists SQLite under `./data` and mounts `./procedures` read-only into the container. For an API hosted on another machine, a local LLM address such as `localhost:11434` refers to the container/host context, not your desktop. Point the provider base URL to a reachable LAN address and secure it appropriately.
-
-## Security notes
-
-- `.env` and database files are ignored by Git.
-- API keys submitted through the dashboard are not persisted.
-- Avoid putting API keys directly in CLI arguments because shell history can retain them. Use `NORTHSTAR_API_KEY` or the dashboard on a trusted local machine.
-- Do not expose the dashboard over untrusted networks without authentication and TLS.
-- Synthetic tickets should not contain real credentials or production secrets.
-- LLM judges are not a substitute for deterministic enforcement of high-impact security controls.
-
-See `docs/SECURITY.md` and `docs/HOMELAB.md` for deployment guidance.
-
-## Tests
-
-```bash
-pytest
-ruff check .
-```
-
-The unit tests cover the deterministic evaluation gate, procedure loading/indexing, and database schema behavior without requiring an external model API.
-
-## Repository layout
-
-```text
-northstar-ai-support-quality/
-├── northstar/
-│   ├── agents.py          # generator, support, judge, defect agents
-│   ├── analytics.py       # Python/SQL run analysis
-│   ├── api.py             # FastAPI service
-│   ├── cli.py             # CLI entry points
-│   ├── db.py              # SQLite schema and persistence
-│   ├── evaluator.py       # deterministic release gate
-│   ├── orchestrator.py    # multi-agent run orchestration
-│   ├── procedures.py      # Markdown/YAML loader + FTS retrieval
-│   ├── providers.py       # OpenAI-compatible, Anthropic, Ollama
-│   ├── schemas.py         # typed data contracts
-│   └── static/index.html  # dashboard
-├── procedures/            # editable support runbooks
-├── sql/analytics.sql
-├── tests/
-├── docs/
-├── Dockerfile
-└── docker-compose.yml
-```
-
-## Extending Northstar
-
-Practical next additions are a GitHub/Jira defect sink, real anonymized ticket import, regression suites that replay prior failures, retrieval-quality metrics, cost/token tracking, scheduled nightly runs, and model-vs-model comparison. The current database schema already gives each ticket, response, score, and defect stable identifiers so those integrations can be added without replacing the core evaluator.
+The support workspace is `/`; the optional quality lab is `/quality-lab`.

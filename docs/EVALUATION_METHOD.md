@@ -12,7 +12,7 @@ The judge is not allowed to change the authoritative procedure or infer undocume
 
 Required steps and forbidden actions come from procedure front matter. Northstar applies inspectable token-overlap checks to the combined answer, action list, and escalation field. This is not intended to understand every paraphrase perfectly. It is a visible policy gate that complements the judge.
 
-A procedure with escalation conditions also requires the response to contain an escalation signal. This prevents a high prose-quality score from masking failure to route a security incident.
+An escalation condition only requires escalation when affirmative ticket evidence matches its trigger; always-escalate procedures are an explicit exception. Negated exposure and negated escalation are excluded. Every mandatory procedure step must match a response clause with the appropriate polarity. These lexical controls remain heuristics: uncommon paraphrases and complex negation can still be misclassified. Inspect the stored evidence and tune the Markdown rules for your environment.
 
 ## Release gate
 

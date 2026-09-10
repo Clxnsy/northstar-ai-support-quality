@@ -2,10 +2,19 @@ services:
   northstar:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       NORTHSTAR_DB_PATH: /app/data/northstar.db
       NORTHSTAR_PROCEDURES_DIR: /app/procedures
+      NORTHSTAR_API_KEY: ${NORTHSTAR_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     volumes:
       - ./data:/app/data
       - ./procedures:/app/procedures:ro

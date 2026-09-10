@@ -8,6 +8,12 @@ venv/
 *.db
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.egg-info/
+build/
+dist/
+.coverage
 data/*.json
 data/*.csv
 !data/.gitkeep
