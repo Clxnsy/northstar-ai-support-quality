@@ -15,25 +15,33 @@ A working IT support workspace where a **human analyst** stays in charge. You pa
 ## How to run it
 Python 3.11 or newer. From the repo directory:
 
-`git clone https://github.com/Clxnsy/northstar-ai-support-quality.git`
-`cd northstar-ai-support-quality`
-`python -m venv .venv`
+```bash
+git clone https://github.com/Clxnsy/northstar-ai-support-quality.git
+cd northstar-ai-support-quality
+python -m venv .venv
+```
 
 Windows PowerShell:
 
-`.\.venv\Scripts\Activate.ps1`
-`python -m pip install -e ".[dev]"`
-`northstar serve`
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+northstar serve
+```
 
 Linux/macOS:
 
-`source .venv/bin/activate`
-`python -m pip install -e ".[dev]"`
-`northstar serve`
+```bash
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+northstar serve
+```
 
 Or with Docker Compose:
 
-`docker compose up`
+```bash
+docker compose up
+```
 
 Copy `.env.example` to `.env` and add your API keys (BYOK). Ollama runs fully local with no key at all.
 
